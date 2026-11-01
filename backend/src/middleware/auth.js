@@ -1,16 +1,17 @@
 import jwt from 'jsonwebtoken';
 
+// se revisa que la peticion traiga un token valido y se guardan sus datos en req.user
 export function authenticate(req, res, next) {
-  const match = /^Bearer (.+)$/i.exec(req.headers.authorization || '');
-  if (!match) return res.status(401).json({ error: 'Token requerido.' });
+  const encabezado = /^Bearer (.+)$/i.exec(req.headers.authorization || '');
+  if (!encabezado) return res.status(401).json({ error: 'Token requerido.' });
   try {
-    const decoded = jwt.verify(match[1], process.env.JWT_SECRET);
+    const datos = jwt.verify(encabezado[1], process.env.JWT_SECRET);
     req.user = {
-      id: Number(decoded.sub),
-      rol: decoded.rol,
-      id_tutor: decoded.id_tutor,
-      id_veterinario: decoded.id_veterinario,
-      id_sede: decoded.id_sede,
+      id: Number(datos.sub),
+      rol: datos.rol,
+      id_tutor: datos.id_tutor,
+      id_veterinario: datos.id_veterinario,
+      id_sede: datos.id_sede,
     };
     next();
   } catch {
@@ -18,6 +19,7 @@ export function authenticate(req, res, next) {
   }
 }
 
+// se revisa que el rol del usuario este entre los permitidos para la ruta
 export function authorize(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user?.rol)) return res.status(403).json({ error: 'Acceso denegado.' });

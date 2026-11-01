@@ -1,83 +1,73 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
 
-export default function ListPage({ title, endpoint, columns, filterConfig, renderActions, topContent }) {
+// filas por pagina
+const LIMITE = 10;
+
+// tabla generica paginada: pide el endpoint de a una pagina y muestra una fila por registro
+export default function ListPage({ title, endpoint, columns, acciones }) {
   const { session, logout } = useAuth();
   const [rows, setRows] = useState([]);
+  const [pagina, setPagina] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [useFilter, setUseFilter] = useState(false);
 
+  // si el endpoint ya trae parametros, la paginacion se agrega con &
+  const separador = endpoint.includes('?') ? '&' : '?';
+
+  // se piden los datos cada vez que cambia el endpoint o la pagina
   useEffect(() => {
-    setUseFilter(false);
-  }, [endpoint]);
-
-  const activeEndpoint = useFilter && filterConfig ? filterConfig.endpoint : endpoint;
-
-  const loadData = useCallback(() => {
     setLoading(true);
     setError('');
-    api(activeEndpoint, { token: session.token })
-      .then(data => setRows(data))
+    api(`${endpoint}${separador}pagina=${pagina}&limite=${LIMITE}`, { token: session.token })
+      .then(setRows)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [activeEndpoint, session.token]);
+  }, [endpoint, separador, pagina, session.token]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  let contenido;
+  if (loading) {
+    contenido = <p>Cargando…</p>;
+  } else if (error) {
+    contenido = <p role="alert" className="error">{error} {error.includes('Token') && <button onClick={logout}>Volver a ingresar</button>}</p>;
+  } else if (rows.length === 0) {
+    contenido = <p>Sin registros.</p>;
+  } else {
+    contenido = (
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {columns.map(([campo, titulo]) => <th key={campo}>{titulo}</th>)}
+              {acciones && <th>Acciones</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.id ?? i}>
+                {columns.map(([campo, , formato]) => (
+                  <td key={campo}>{formato ? formato(row[campo]) : (row[campo] ?? '-')}</td>
+                ))}
+                {acciones && <td>{acciones(row)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
+  // el boton Siguiente se apaga cuando llega una pagina incompleta (ya no hay mas registros)
   return (
     <section>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2>{useFilter && filterConfig?.title ? filterConfig.title : title}</h2>
-        {filterConfig && (!filterConfig.roles || filterConfig.roles.includes(session.usuario.rol)) && (
-          <button onClick={() => setUseFilter(!useFilter)}>
-            {useFilter ? filterConfig.clearLabel : filterConfig.buttonLabel}
-          </button>
-        )}
+      <h2>{title}</h2>
+      {contenido}
+      <div className="paginacion">
+        <button disabled={pagina === 1} onClick={() => setPagina(pagina - 1)}>Anterior</button>
+        <span>Página {pagina}</span>
+        <button disabled={rows.length < LIMITE} onClick={() => setPagina(pagina + 1)}>Siguiente</button>
       </div>
-
-      {/* Espacio opcional para formularios de creación arriba de la tabla */}
-      {topContent && topContent(loadData, session)}
-
-      {loading ? (
-        <p>Cargando…</p>
-      ) : error ? (
-        <p role="alert" className="error">
-          {error} {error.includes('Token') && <button onClick={logout}>Volver a ingresar</button>}
-        </p>
-      ) : rows.length === 0 ? (
-        <p>Sin registros.</p>
-      ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                {columns.map(([key, label]) => (
-                  <th key={key}>{label}</th>
-                ))}
-                {renderActions && <th>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={row.id ?? i}>
-                  {columns.map(([key, , render]) => (
-                    <td key={key}>
-                      {render ? render(row[key], row) : (row[key] ?? '—')}
-                    </td>
-                  ))}
-                  {renderActions && (
-                    <td>{renderActions(row, loadData, session)}</td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </section>
   );
 }

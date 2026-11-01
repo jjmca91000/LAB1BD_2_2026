@@ -1,9 +1,11 @@
-import { login } from '../services/authService.js';
+import * as service from '../services/authService.js';
 
-export async function postLogin(req, res, next) {
-  try {
-    res.json(await login(req.body?.correo, req.body?.password));
-  } catch (error) {
-    next(error);
-  }
+// se inicia sesion
+export async function postLogin(req, res) {
+  res.json(await service.login(req.body));
+}
+
+// se registra un tutor nuevo
+export async function postRegistro(req, res) {
+  res.status(201).json(await service.registrar(req.body));
 }

@@ -1,37 +1,41 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { findUserByEmail } from '../repositories/authRepository.js';
+import * as repository from '../repositories/authRepository.js';
+import { createTutor } from './catalogoService.js';
+import { httpError, requerirTexto } from '../utils/validar.js';
 
-export async function login(correo, password) {
-  if (typeof correo !== 'string' || typeof password !== 'string' || !correo.trim() || !password) {
-    const error = new Error('Correo y contraseña son obligatorios.');
-    error.status = 400;
-    throw error;
+// se revisa el correo y la contrasena y se entrega un token
+export async function login(body) {
+  const correo = requerirTexto(body.correo, 'el correo');
+  const password = requerirTexto(body.password, 'la contraseña');
+
+  const usuario = await repository.findUsuarioByCorreo(correo);
+  if (!usuario?.activo || !(await bcrypt.compare(password, usuario.password_hash))) {
+    throw httpError(401, 'Credenciales incorrectas.');
   }
-  const user = await findUserByEmail(correo.trim());
-  if (!user?.activo || !(await bcrypt.compare(password, user.password_hash))) {
-    const error = new Error('Credenciales incorrectas.');
-    error.status = 401;
-    throw error;
-  }
-  const payload = {
-    sub: String(user.id),
-    rol: user.rol,
-    id_tutor: user.id_tutor,
-    id_veterinario: user.id_veterinario,
-    id_sede: user.id_sede,
-  };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+  // el token guarda el rol y los ids que se usan para filtrar por rol
+  const token = jwt.sign(
+    { sub: String(usuario.id), rol: usuario.rol, id_tutor: usuario.id_tutor, id_veterinario: usuario.id_veterinario, id_sede: usuario.id_sede },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' },
+  );
   return {
     token,
     usuario: {
-      id: user.id,
-      nombre: user.nombre,
-      correo: user.correo,
-      rol: user.rol,
-      id_tutor: user.id_tutor,
-      id_veterinario: user.id_veterinario,
-      id_sede: user.id_sede,
+      id: usuario.id,
+      nombre: usuario.nombre,
+      correo: usuario.correo,
+      rol: usuario.rol,
+      id_tutor: usuario.id_tutor,
+      id_veterinario: usuario.id_veterinario,
+      id_sede: usuario.id_sede,
     },
   };
+}
+
+// se crea una cuenta de tutor y se inicia sesion con ella
+export async function registrar(body) {
+  await createTutor(body);
+  return login(body);
 }

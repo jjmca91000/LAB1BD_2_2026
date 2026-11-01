@@ -1,6 +1,7 @@
 import pg from 'pg';
 import 'dotenv/config';
 
+// se crea la conexion a PostgreSQL con los datos del .env
 export const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 5432),

@@ -1,43 +1,37 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const links = [
-  ['inicio', 'Inicio', ['Administrador', 'Veterinario', 'Tutor']], 
-  ['mascotas', 'Mascotas', ['Administrador', 'Veterinario', 'Tutor']],
-  ['citas', 'Citas Médicas', ['Administrador', 'Veterinario', 'Tutor']],
-  ['veterinarios', 'Veterinarios', ['Administrador']],
-  ['disponibilidad', 'Disponibilidad Horaria', ['Administrador']],
+const TODOS = ['Administrador', 'Veterinario', 'Tutor'];
+
+// botones del menu: [pagina, texto, roles que lo ven]
+const LINKS = [
+  ['inicio', 'Inicio', TODOS],
+  ['mascotas', 'Mascotas', TODOS],
+  ['citas', 'Citas Médicas', TODOS],
+  ['fichas', 'Fichas Clínicas', TODOS],
+  ['vacunas', 'Vacunas', TODOS],
+  ['personal', 'Personal', ['Administrador']],
   ['sedes', 'Sedes', ['Administrador']],
-  ['fichas', 'Fichas Clínicas', ['Administrador', 'Veterinario', 'Tutor']],
-  ['vacunaciones', 'Vacunas', ['Administrador', 'Veterinario', 'Tutor']],
   ['inventario', 'Inventario', ['Administrador']],
   ['auditoria', 'Auditoría', ['Administrador']],
   ['estadisticas', 'Estadísticas (MV)', ['Administrador']],
 ];
 
+// se muestra el encabezado, el menu segun el rol y la pagina elegida
 export default function Layout({ page, setPage, children }) {
   const { session, logout } = useAuth();
-  const rolUsuario = session.usuario.rol;
-  const linksVisibles = links.filter(([, , rolesPermitidos]) =>
-    rolesPermitidos.includes(rolUsuario)
-  );
-  
+  const rol = session.usuario.rol;
+  const linksVisibles = LINKS.filter(([, , roles]) => roles.includes(rol));
+
   return (
     <div className="shell">
       <header>
         <h1>Red Veterinaria</h1>
-        <span>{session.usuario.nombre} · {rolUsuario}</span>
+        <span>{session.usuario.nombre} · {rol}</span>
         <button onClick={logout}>Salir</button>
       </header>
       <nav>
-        {linksVisibles.map(([id, label]) => (
-          <button
-            key={id}
-            className={page === id ? 'active' : ''}
-            onClick={() => setPage(id)}
-          >
-            {label}
-          </button>
+        {linksVisibles.map(([id, texto]) => (
+          <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)}>{texto}</button>
         ))}
       </nav>
       <main>{children}</main>
