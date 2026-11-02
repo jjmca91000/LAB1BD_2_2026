@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cwPMX6GEgjahBDoT373NSxwdwVWjqDupguHXMOiyZr4955FI6B9r1nqIF3gO9zg
+\restrict qcCMA9LHiFfympmHtWAfX5vzyNQoDsXC4bbeEbnEAOMrqlqmjQeOdwb0ByEnBGX
 
 -- Dumped from database version 15.19
 -- Dumped by pg_dump version 15.19
@@ -794,17 +794,34 @@ ALTER SEQUENCE public."VETERINARIO_id_veterinario_seq" OWNED BY public."VETERINA
 --
 
 CREATE MATERIALIZED VIEW public.mv_estadisticas_atencion AS
- SELECT s.nombre AS nombre_sede,
+ WITH conteo AS (
+         SELECT c.id_sede,
+            m.id_especie,
+            f.diagnostico,
+            count(*) AS veces
+           FROM ((public."FICHA_CLINICA" f
+             JOIN public."CITA_MEDICA" c ON ((f.id_cita = c.id_cita)))
+             JOIN public."MASCOTA" m ON ((c.id_mascota = m.id_mascota)))
+          WHERE ((c.fecha_hora >= (CURRENT_DATE - '1 year'::interval)) AND (f.diagnostico IS NOT NULL))
+          GROUP BY c.id_sede, m.id_especie, f.diagnostico
+        ), ranking AS (
+         SELECT conteo.id_sede,
+            conteo.id_especie,
+            conteo.diagnostico,
+            conteo.veces,
+            row_number() OVER (PARTITION BY conteo.id_sede, conteo.id_especie ORDER BY conteo.veces DESC, conteo.diagnostico) AS puesto
+           FROM conteo
+        )
+ SELECT r.id_sede,
+    s.nombre AS nombre_sede,
+    r.id_especie,
     e.nombre_especie AS especie,
-    count(f.id_ficha) AS cantidad_atenciones,
-    mode() WITHIN GROUP (ORDER BY f.diagnostico) AS diagnostico_mas_frecuente
-   FROM ((((public."FICHA_CLINICA" f
-     JOIN public."CITA_MEDICA" c ON ((f.id_cita = c.id_cita)))
-     JOIN public."SEDE" s ON ((c.id_sede = s.id_sede)))
-     JOIN public."MASCOTA" m ON ((c.id_mascota = m.id_mascota)))
-     JOIN public."ESPECIE" e ON ((m.id_especie = e.id_especie)))
-  WHERE ((c.fecha_hora >= (CURRENT_DATE - '1 year'::interval)) AND (f.diagnostico IS NOT NULL))
-  GROUP BY s.nombre, e.nombre_especie
+    (sum(r.veces))::integer AS cantidad_atenciones,
+    string_agg((((r.diagnostico || ' ('::text) || r.veces) || ')'::text), ', '::text ORDER BY r.puesto) FILTER (WHERE (r.puesto <= 3)) AS diagnosticos_mas_frecuentes
+   FROM ((ranking r
+     JOIN public."SEDE" s ON ((r.id_sede = s.id_sede)))
+     JOIN public."ESPECIE" e ON ((r.id_especie = e.id_especie)))
+  GROUP BY r.id_sede, s.nombre, r.id_especie, e.nombre_especie
   WITH NO DATA;
 
 
@@ -952,8 +969,8 @@ COPY public."ALERGIA_MASCOTA" (id_alergia, id_mascota, principio_activo) FROM st
 --
 
 COPY public."AUDITORIA" (id_auditoria, id_ficha, diagnostico_anterior, diagnostico_nuevo, id_usuario_modificador, fecha_modificacion) FROM stdin;
-1	5	Otitis Externa	Otitis Externa Bilateral Crónica	1	2026-11-01 23:31:41.369058
-2	9	Sobrepeso leve	Sobrepeso moderado con indicación nutricional	1	2026-11-01 23:31:41.37098
+1	5	Otitis Externa	Otitis Externa Bilateral Crónica	1	2026-11-02 01:54:15.561482
+2	9	Sobrepeso leve	Sobrepeso moderado con indicación nutricional	1	2026-11-02 01:54:15.562809
 \.
 
 
@@ -1161,17 +1178,17 @@ COPY public."TUTOR" (id_tutor, id_usuario, nombre_tutor) FROM stdin;
 --
 
 COPY public."USUARIO" (id_usuario, id_rol, email, password_hash, activo) FROM stdin;
-1	2	vet.norte@redvet.cl	$2a$10$8O2gI.rWk9jFx5x7JEaj7.s0k2ty6obnfp4WVH0tBkdcFlFC0Cv9.	t
-2	2	vet.centro@redvet.cl	$2a$10$OJET3rFO3gIIykF8P9AOfuVHT9FDCbTenaESZm8tbRLRP6c9iMg2y	t
-3	2	vet.sur@redvet.cl	$2a$10$HpSiOgJv4uJlFGkHwNBQeOiTvCc2FdFQfwnBKqLSP6erTDMTcmGSK	t
-4	3	carlos.m@gmail.com	$2a$10$jFui.XKVlIZFxuNCyl5e7e1UJOspgSYBI40mXn547DapnWOWiwoE.	t
-5	3	lucia.f@gmail.com	$2a$10$7K0NhPyAzrer5R6d/5hS9e1Dc9AOFhlzLJD6.ne8VQVcxmVHXxKUK	t
-6	3	pedro.g@gmail.com	$2a$10$0QqHz/pvYukk.K25oH71Qe8Nat7HVGNT8a.TBOmEuCQ5V50JF5SnK	t
-7	3	ana.t@gmail.com	$2a$10$yJQgF9TbtfDBUMLqeCOVy.ozgt/652xpEUKMmZEyXII8OUWund2L.	t
-8	3	diego.r@gmail.com	$2a$10$4xgDwA804SdR4t023QupcOfjLUF9.cx2oL6yLAgZzPiT0VZTUmoU6	t
-9	3	sofia.v@gmail.com	$2a$10$VpVaHo1sHgeaBVzfOLGcIOE5G6RN6T7wPAB2tiRk715RJKZU8upyq	t
-10	3	mateo.l@gmail.com	$2a$10$6v9FHwQKv/k99kA8gL/pj.OwEwyQUyhNsVq.SrGPldApAiLB9EUZq	t
-11	1	admin@redvet.cl	$2b$10$FX/lTYzBZ2KUMzjlyHf1ieo/2ZHqvy26SZhepPmYQEW9MFOTTFvdC	t
+1	2	vet.norte@redvet.cl	$2a$10$MsDhGZ24pgkegc4jbXOtLOouW91itf3Q1ebqDxGssCvZftJp/Uicu	t
+2	2	vet.centro@redvet.cl	$2a$10$m6mjSbW4FwtJ7ijybsyRxOBjDlPJpnsjrWYFGCxAt.0fJU3MMo3ru	t
+3	2	vet.sur@redvet.cl	$2a$10$CaU5bqOxyUmCEvxh4fidXOFDUSfgCEEfkXwmBfixaUSLH7tdxF15u	t
+4	3	carlos.m@gmail.com	$2a$10$duZjZkmHaJxy7.ba.rEE7OSaHTpBlSBJks4SDjgJP1V9iiNCTG45G	t
+5	3	lucia.f@gmail.com	$2a$10$jyMu0UoEjsqgRi6PIFAsfOtTJECVOteCAt/4Uc.oFgPteY2t70dja	t
+6	3	pedro.g@gmail.com	$2a$10$JZGh9Yd7rCnOihiRtRjhA.ulkg.4Cf5i4zA/a7LRfQXjaJrJlWEUO	t
+7	3	ana.t@gmail.com	$2a$10$1csu/nmOuTKDov2RAGsfRu5CXk8cQe3lgHkoZkK88SB/9GgGga0KK	t
+8	3	diego.r@gmail.com	$2a$10$ER3AGTm2Z.UvmoqpIn4JpeauaZXA2nicE4mMKfh5SthdBxFkL2KTO	t
+9	3	sofia.v@gmail.com	$2a$10$K5FraPrFI0vo0jd5qZisiO/c3x2ImjPHkTaFVYQRuJaYlHw4FzP.y	t
+10	3	mateo.l@gmail.com	$2a$10$d7AFo7Ex6UgYi1pGCXlJUOMGWPyUEgaSfqm.jQH8gCQnDvqrDkNvK	t
+11	1	admin@redvet.cl	$2b$10$YBj2AluOy/31naVEN8w2xu1JM19lV9sz.qQaNjU5Jdxacs8IjYM0S	t
 \.
 
 
@@ -1578,7 +1595,7 @@ CREATE INDEX idx_cita_vet_fecha ON public."CITA_MEDICA" USING btree (id_veterina
 -- Name: idx_mv_estadisticas_unica; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_mv_estadisticas_unica ON public.mv_estadisticas_atencion USING btree (nombre_sede, especie);
+CREATE UNIQUE INDEX idx_mv_estadisticas_unica ON public.mv_estadisticas_atencion USING btree (id_sede, id_especie);
 
 
 --
@@ -1782,5 +1799,5 @@ REFRESH MATERIALIZED VIEW public.mv_estadisticas_atencion;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cwPMX6GEgjahBDoT373NSxwdwVWjqDupguHXMOiyZr4955FI6B9r1nqIF3gO9zg
+\unrestrict qcCMA9LHiFfympmHtWAfX5vzyNQoDsXC4bbeEbnEAOMrqlqmjQeOdwb0ByEnBGX
 

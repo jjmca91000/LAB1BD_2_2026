@@ -292,11 +292,14 @@ export async function findAuditoriaById(id) {
   return rows[0] ?? null;
 }
 
-// se leen las estadisticas desde la vista materializada
-export async function findEstadisticas(pagina) {
+// se leen las estadisticas desde la vista materializada; idSede e idEspecie = null no filtran
+export async function findEstadisticas(idSede, idEspecie, pagina) {
   const { rows } = await pool.query(
-    'SELECT * FROM mv_estadisticas_atencion ORDER BY nombre_sede, especie LIMIT $1 OFFSET $2',
-    [pagina.limite, pagina.offset],
+    `SELECT * FROM mv_estadisticas_atencion
+     WHERE ($1::int IS NULL OR id_sede = $1) AND ($2::int IS NULL OR id_especie = $2)
+     ORDER BY nombre_sede, especie
+     LIMIT $3 OFFSET $4`,
+    [idSede, idEspecie, pagina.limite, pagina.offset],
   );
   return rows;
 }

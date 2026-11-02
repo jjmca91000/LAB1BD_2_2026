@@ -66,6 +66,9 @@ Probar 'Por vencer (tutor ve solo las suyas)' 200 GET '/vacunaciones/por-vencer'
 Probar 'Disponibilidad' 200 GET '/veterinarios/1/disponibilidad?fecha=2026-11-05' $carlos
 Probar 'Disponibilidad con fecha imposible' 400 GET '/veterinarios/1/disponibilidad?fecha=2026-02-30' $admin
 Probar 'Refrescar estadisticas' 200 POST '/estadisticas/refrescar' $admin
+Probar 'Estadisticas filtradas por sede y especie' 200 GET '/estadisticas?id_sede=3&id_especie=5' $admin
+Probar 'Estadisticas con filtro invalido' 400 GET '/estadisticas?id_sede=abc' $admin
+Probar 'Tutor no ve estadisticas' 403 GET '/estadisticas' $carlos
 
 Write-Host '--- Registro de usuario'
 Probar 'Registro de tutor (devuelve token)' 201 POST '/auth/registro' $null @{ nombre = 'Marta Rios'; correo = 'marta@gmail.com'; password = 'marta123' }

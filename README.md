@@ -92,7 +92,7 @@ Cualquier persona también puede crearse una cuenta de tutor con **Crear una cue
 ## Qué puede hacer cada rol
 
 - **Tutor:** registra a sus mascotas, agenda citas (eligiendo sede, veterinario, fecha y una hora libre) y ve las fichas y vacunas de sus mascotas. Solo ve lo suyo.
-- **Veterinario:** ve su agenda, atiende sus citas (diagnóstico, tratamiento, recetas y vacunas), corrige diagnósticos y edita o cancela sus citas.
+- **Veterinario:** ve su agenda, atiende sus citas (diagnóstico, tratamiento, recetas y vacunas), registra las alergias de las mascotas, corrige diagnósticos y edita o cancela sus citas.
 - **Administrador:** todo lo anterior en todas las sedes, y además gestiona el personal (cuentas de veterinarios y administradores), sedes, inventario, planes de vacunación, auditoría y estadísticas.
 
 ## Base de datos
@@ -105,7 +105,7 @@ Los archivos de `database/` se ejecutan en orden la primera vez que se crea la b
 | `02_procedimientos.sql` | **SP1** `sp_registrar_atencion` (atención + recetas + descuento de inventario) y **SP2** `sp_aplicar_vacuna` (aplica un plan y agenda las citas de refuerzo) |
 | `03_triggers.sql` | **Trigger 1** (impide recetar a una mascota alérgica) y **Trigger 2** (audita los cambios de diagnóstico en fichas cerradas) |
 | `04_indexes.sql` | Índices en la mascota y en la fecha de la cita |
-| `05_materialized_views.sql` | Vista materializada de estadísticas por especie y sede (se refresca todos los días a las 03:00) |
+| `05_materialized_views.sql` | Vista materializada de estadísticas por especie y sede: atenciones y los 3 diagnósticos más frecuentes (se refresca todos los días a las 03:00) |
 | `06_seeder.sql` | Datos de prueba |
 
 Además, `docs/dump_lab1bd.sql` es un respaldo completo (`pg_dump`) de la base recién creada.
@@ -154,12 +154,13 @@ Responde con el token y los datos del usuario:
 | `/veterinarios` | Todos leen; el administrador modifica | Igual que tutores, más `"id_sede": 1` |
 | `/roles` | Administrador (solo lectura) | — |
 | `/mascotas` | Tutor (las suyas) y administrador | `{ "nombre": "Toby", "id_especie": 1 }` (el administrador agrega `"id_tutor"`) |
-| `/alergias` | Veterinario y administrador. Filtro `?id_mascota=1` | `{ "id_mascota": 1, "principio_activo": "Meloxicam" }` |
+| `/alergias` | Veterinario y administrador (el tutor lee las de sus mascotas). Filtro `?id_mascota=1`. El **trigger 1** las usa para rechazar recetas | `{ "id_mascota": 1, "principio_activo": "Meloxicam" }` |
 | `/citas` | Todos (cada uno ve las suyas) | `{ "id_mascota": 1, "id_sede": 1, "id_veterinario": 1, "tipo_atencion": "Sede", "fecha_hora": "2026-12-01T10:00" }` |
 | `/fichas`, `/recetas` | Todos (el tutor, las de sus mascotas) | Se crean solas al agendar y al atender |
 | `/planes-vacunacion` | Veterinario lee; el administrador modifica | `{ "id_especie": 1, "nombre_vacuna": "Óctuple Canina", "cantidad_refuerzo": 2, "dias_refuerzo": 30 }` |
 | `/vacunaciones` | Todos leen (el tutor, las suyas) | Ver procedimiento 2 |
-| `/auditoria`, `/estadisticas` | Administrador (solo lectura) | — |
+| `/auditoria` | Administrador (solo lectura) | — |
+| `/estadisticas` | Administrador (solo lectura). Filtros `?id_sede=1&id_especie=1` | — |
 
 Una cita no se acepta en un día pasado, con un veterinario de otra sede ni en una hora en que el veterinario ya tiene
 otra cita.

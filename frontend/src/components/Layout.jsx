@@ -23,7 +23,7 @@ export default function Layout({ page, setPage, children }) {
   const linksVisibles = LINKS.filter(([, , roles]) => roles.includes(rol));
 
   return (
-    <div className="shell">
+    <div>
       <header>
         <h1>Red Veterinaria</h1>
         <span>{session.usuario.nombre} · {rol}</span>

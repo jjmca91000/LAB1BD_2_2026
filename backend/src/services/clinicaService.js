@@ -106,9 +106,11 @@ export async function getAuditoriaById(id) {
   return encontradoOrThrow(registro, 'Registro de auditoría no encontrado.');
 }
 
-// se piden las estadisticas de la vista materializada
+// se piden las estadisticas de la vista materializada, filtradas por ?id_sede y ?id_especie si vienen
 export function getEstadisticas(query) {
-  return repository.findEstadisticas(paginacion(query));
+  const idSede = opcionalId(query.id_sede, 'Id de sede');
+  const idEspecie = opcionalId(query.id_especie, 'Id de especie');
+  return repository.findEstadisticas(idSede, idEspecie, paginacion(query));
 }
 
 // se refresca la vista materializada

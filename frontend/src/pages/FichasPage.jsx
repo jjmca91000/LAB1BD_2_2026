@@ -41,6 +41,7 @@ function AtencionForm({ ficha, alTerminar }) {
 
   const [medicamentos, setMedicamentos] = useState([]);
   const [planes, setPlanes] = useState([]);
+  const [alergias, setAlergias] = useState([]);
   const [form, setForm] = useState({
     diagnostico: ficha.diagnostico ?? '', tratamiento: ficha.tratamiento ?? '',
     id_medicamento: '', cantidad: 1, id_vacuna: '',
@@ -52,6 +53,7 @@ function AtencionForm({ ficha, alTerminar }) {
     api('/medicamentos', { token }).then(setMedicamentos);
     // solo los planes de la especie de la mascota
     api('/planes-vacunacion', { token }).then(todos => setPlanes(todos.filter(p => p.especie === ficha.especie)));
+    api(`/alergias?id_mascota=${ficha.id_mascota}`, { token }).then(setAlergias);
   }, [ficha, token]);
 
   // se actualiza un campo del formulario
@@ -99,6 +101,8 @@ function AtencionForm({ ficha, alTerminar }) {
         </label>
 
         {ficha.abierta && <>
+          {/* solo es un aviso: si igual se receta, el trigger 1 de la base de datos rechaza la atencion */}
+          <p>Alergias de {ficha.mascota}: {alergias.length ? alergias.map(a => a.principio_activo).join(', ') : 'ninguna registrada'}</p>
           <label>Medicamento recetado (opcional)
             <Selector opcional valor={form.id_medicamento} opciones={medicamentos}
               texto={m => `${m.nombre_comercial} (${m.principio_activo})`} alCambiar={v => cambiar('id_medicamento', v)} />

@@ -1,10 +1,12 @@
 import { pool } from '../config/db.js';
 
-// se buscan las mascotas; idTutor = null trae las de todos
+// se buscan las mascotas con sus alergias juntas en un texto; idTutor = null trae las de todos
 export async function findAllMascotas(idTutor, pagina) {
   const { rows } = await pool.query(
     `SELECT m.id_mascota AS id, m.nombre_mascota AS nombre, m.id_especie, e.nombre_especie AS especie,
-            m.id_tutor, t.nombre_tutor AS tutor
+            m.id_tutor, t.nombre_tutor AS tutor,
+            (SELECT string_agg(a.principio_activo, ', ' ORDER BY a.principio_activo)
+             FROM "ALERGIA_MASCOTA" a WHERE a.id_mascota = m.id_mascota) AS alergias
      FROM "MASCOTA" m
      JOIN "ESPECIE" e ON e.id_especie = m.id_especie
      JOIN "TUTOR" t ON t.id_tutor = m.id_tutor
@@ -20,7 +22,9 @@ export async function findAllMascotas(idTutor, pagina) {
 export async function findMascotaById(id, idTutor) {
   const { rows } = await pool.query(
     `SELECT m.id_mascota AS id, m.nombre_mascota AS nombre, m.id_especie, e.nombre_especie AS especie,
-            m.id_tutor, t.nombre_tutor AS tutor
+            m.id_tutor, t.nombre_tutor AS tutor,
+            (SELECT string_agg(a.principio_activo, ', ' ORDER BY a.principio_activo)
+             FROM "ALERGIA_MASCOTA" a WHERE a.id_mascota = m.id_mascota) AS alergias
      FROM "MASCOTA" m
      JOIN "ESPECIE" e ON e.id_especie = m.id_especie
      JOIN "TUTOR" t ON t.id_tutor = m.id_tutor

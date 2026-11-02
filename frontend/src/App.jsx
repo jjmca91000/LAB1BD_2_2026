@@ -11,6 +11,7 @@ import VacunasPage from './pages/VacunasPage.jsx';
 import PersonalPage from './pages/PersonalPage.jsx';
 import SedesPage from './pages/SedesPage.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
+import EstadisticasPage from './pages/EstadisticasPage.jsx';
 
 // se muestra el login o, si hay sesion, el menu con la pagina elegida
 export default function App() {
@@ -47,10 +48,6 @@ function Page({ page }) {
       ['diagnostico_nuevo', 'Diagnóstico nuevo'], ['modificado_por', 'Modificado por'],
     ]} />;
   }
-  if (page === 'estadisticas') {
-    return <ListPage title="Estadísticas de atención (últimos 12 meses)" endpoint="/estadisticas" columns={[
-      ['nombre_sede', 'Sede'], ['especie', 'Especie'], ['cantidad_atenciones', 'Atenciones'], ['diagnostico_mas_frecuente', 'Diagnóstico más frecuente'],
-    ]} />;
-  }
+  if (page === 'estadisticas') return <EstadisticasPage />;
   return <Dashboard />;
 }
