@@ -13,6 +13,8 @@ AS $$
 DECLARE
     v_id_ficha INT;
     v_id_sede INT;
+    v_stock INT;
+    v_nombre VARCHAR;
 BEGIN
     -- se revisa que cada medicamento tenga su cantidad
     IF cardinality(p_medicamentos) <> cardinality(p_cantidades) THEN
@@ -37,18 +39,29 @@ BEGIN
     WHERE id_cita = p_id_cita
     RETURNING id_sede INTO v_id_sede;
 
-    -- por cada medicamento: receta (la revisa el trigger 1) y descuento de stock (el CHECK impide quedar en negativo)
+    -- por cada medicamento: receta (la revisa el trigger 1), revision de stock y descuento
     FOR i IN 1 .. cardinality(p_medicamentos) LOOP
         INSERT INTO "RECETA" (id_ficha, id_medicamento, cantidad_entregada)
         VALUES (v_id_ficha, p_medicamentos[i], p_cantidades[i]);
 
+        -- FOR UPDATE bloquea la fila para que otra atencion no descuente el mismo stock al mismo tiempo
+        SELECT inv.stock_actual, m.nombre_comercial INTO v_stock, v_nombre
+        FROM "INVENTARIO" inv
+        JOIN "MEDICAMENTO" m ON m.id_medicamento = inv.id_medicamento
+        WHERE inv.id_sede = v_id_sede AND inv.id_medicamento = p_medicamentos[i]
+        FOR UPDATE OF inv;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'El medicamento % no está en el inventario de la sede de la cita.', p_medicamentos[i];
+        END IF;
+
+        IF v_stock < p_cantidades[i] THEN
+            RAISE EXCEPTION 'Stock insuficiente de %: se piden % y quedan %.', v_nombre, p_cantidades[i], v_stock;
+        END IF;
+
         UPDATE "INVENTARIO"
         SET stock_actual = stock_actual - p_cantidades[i]
         WHERE id_sede = v_id_sede AND id_medicamento = p_medicamentos[i];
-
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'El medicamento % no está en el inventario de la sede %.', p_medicamentos[i], v_id_sede;
-        END IF;
     END LOOP;
 
     -- si se vacuno, se llama al procedimiento 2 dentro de la misma transaccion

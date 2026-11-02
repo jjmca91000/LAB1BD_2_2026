@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict qcCMA9LHiFfympmHtWAfX5vzyNQoDsXC4bbeEbnEAOMrqlqmjQeOdwb0ByEnBGX
+\restrict VIsuG8aJwUkm3CYylpQO0BUaDmqbKu8nCJLH1tO69eOnmKKXa9FjBDqDZjKAIer
 
 -- Dumped from database version 15.19
 -- Dumped by pg_dump version 15.19
@@ -187,6 +187,8 @@ CREATE PROCEDURE public.sp_registrar_atencion(IN p_id_cita integer, IN p_diagnos
 DECLARE
     v_id_ficha INT;
     v_id_sede INT;
+    v_stock INT;
+    v_nombre VARCHAR;
 BEGIN
     -- se revisa que cada medicamento tenga su cantidad
     IF cardinality(p_medicamentos) <> cardinality(p_cantidades) THEN
@@ -211,18 +213,29 @@ BEGIN
     WHERE id_cita = p_id_cita
     RETURNING id_sede INTO v_id_sede;
 
-    -- por cada medicamento: receta (la revisa el trigger 1) y descuento de stock (el CHECK impide quedar en negativo)
+    -- por cada medicamento: receta (la revisa el trigger 1), revision de stock y descuento
     FOR i IN 1 .. cardinality(p_medicamentos) LOOP
         INSERT INTO "RECETA" (id_ficha, id_medicamento, cantidad_entregada)
         VALUES (v_id_ficha, p_medicamentos[i], p_cantidades[i]);
 
+        -- FOR UPDATE bloquea la fila para que otra atencion no descuente el mismo stock al mismo tiempo
+        SELECT inv.stock_actual, m.nombre_comercial INTO v_stock, v_nombre
+        FROM "INVENTARIO" inv
+        JOIN "MEDICAMENTO" m ON m.id_medicamento = inv.id_medicamento
+        WHERE inv.id_sede = v_id_sede AND inv.id_medicamento = p_medicamentos[i]
+        FOR UPDATE OF inv;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'El medicamento % no está en el inventario de la sede de la cita.', p_medicamentos[i];
+        END IF;
+
+        IF v_stock < p_cantidades[i] THEN
+            RAISE EXCEPTION 'Stock insuficiente de %: se piden % y quedan %.', v_nombre, p_cantidades[i], v_stock;
+        END IF;
+
         UPDATE "INVENTARIO"
         SET stock_actual = stock_actual - p_cantidades[i]
         WHERE id_sede = v_id_sede AND id_medicamento = p_medicamentos[i];
-
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'El medicamento % no está en el inventario de la sede %.', p_medicamentos[i], v_id_sede;
-        END IF;
     END LOOP;
 
     -- si se vacuno, se llama al procedimiento 2 dentro de la misma transaccion
@@ -969,8 +982,8 @@ COPY public."ALERGIA_MASCOTA" (id_alergia, id_mascota, principio_activo) FROM st
 --
 
 COPY public."AUDITORIA" (id_auditoria, id_ficha, diagnostico_anterior, diagnostico_nuevo, id_usuario_modificador, fecha_modificacion) FROM stdin;
-1	5	Otitis Externa	Otitis Externa Bilateral Crónica	1	2026-11-02 01:54:15.561482
-2	9	Sobrepeso leve	Sobrepeso moderado con indicación nutricional	1	2026-11-02 01:54:15.562809
+1	5	Otitis Externa	Otitis Externa Bilateral Crónica	1	2026-11-02 02:23:39.583347
+2	9	Sobrepeso leve	Sobrepeso moderado con indicación nutricional	1	2026-11-02 02:23:39.584583
 \.
 
 
@@ -1178,17 +1191,17 @@ COPY public."TUTOR" (id_tutor, id_usuario, nombre_tutor) FROM stdin;
 --
 
 COPY public."USUARIO" (id_usuario, id_rol, email, password_hash, activo) FROM stdin;
-1	2	vet.norte@redvet.cl	$2a$10$MsDhGZ24pgkegc4jbXOtLOouW91itf3Q1ebqDxGssCvZftJp/Uicu	t
-2	2	vet.centro@redvet.cl	$2a$10$m6mjSbW4FwtJ7ijybsyRxOBjDlPJpnsjrWYFGCxAt.0fJU3MMo3ru	t
-3	2	vet.sur@redvet.cl	$2a$10$CaU5bqOxyUmCEvxh4fidXOFDUSfgCEEfkXwmBfixaUSLH7tdxF15u	t
-4	3	carlos.m@gmail.com	$2a$10$duZjZkmHaJxy7.ba.rEE7OSaHTpBlSBJks4SDjgJP1V9iiNCTG45G	t
-5	3	lucia.f@gmail.com	$2a$10$jyMu0UoEjsqgRi6PIFAsfOtTJECVOteCAt/4Uc.oFgPteY2t70dja	t
-6	3	pedro.g@gmail.com	$2a$10$JZGh9Yd7rCnOihiRtRjhA.ulkg.4Cf5i4zA/a7LRfQXjaJrJlWEUO	t
-7	3	ana.t@gmail.com	$2a$10$1csu/nmOuTKDov2RAGsfRu5CXk8cQe3lgHkoZkK88SB/9GgGga0KK	t
-8	3	diego.r@gmail.com	$2a$10$ER3AGTm2Z.UvmoqpIn4JpeauaZXA2nicE4mMKfh5SthdBxFkL2KTO	t
-9	3	sofia.v@gmail.com	$2a$10$K5FraPrFI0vo0jd5qZisiO/c3x2ImjPHkTaFVYQRuJaYlHw4FzP.y	t
-10	3	mateo.l@gmail.com	$2a$10$d7AFo7Ex6UgYi1pGCXlJUOMGWPyUEgaSfqm.jQH8gCQnDvqrDkNvK	t
-11	1	admin@redvet.cl	$2b$10$YBj2AluOy/31naVEN8w2xu1JM19lV9sz.qQaNjU5Jdxacs8IjYM0S	t
+1	2	vet.norte@redvet.cl	$2a$10$ca5iv2Z9G7eiMT4EhmE5Lua7JGWpIUavv6K9xcgI0i1hF3YhykLqa	t
+2	2	vet.centro@redvet.cl	$2a$10$0bMfT2ZgdaMFfu.TwinGxeYDiFir00j0CAfnk6qAoB/e4iveqHLy.	t
+3	2	vet.sur@redvet.cl	$2a$10$ekIrAMWKiig8h513p2uew.6dbuzcyOj9e8J8nUSCe6bVHBjMWkNvW	t
+4	3	carlos.m@gmail.com	$2a$10$Wmk71g49aXijxeRVrC5UIuWJEbiB2lHYpNf0NVpqggjvNDzR8Ggg.	t
+5	3	lucia.f@gmail.com	$2a$10$ofovwSdM.CV//icLMKXqk.OiT2CHuvS3f9utTWVHKxfbxABZgrfr2	t
+6	3	pedro.g@gmail.com	$2a$10$CzzH6yrNgw2oLSIK.22LxuE98d3xEjEQ8ylSu7FsBahUOBf.Y52iC	t
+7	3	ana.t@gmail.com	$2a$10$WsYasoi8.j1MmDgz7DDreuqyLYZ9c8WTAi0Y4Dj7Tiy6oUA0yzVMe	t
+8	3	diego.r@gmail.com	$2a$10$l9.2h.GRli18eTmrF03zWOGNzhC4gFoDtpatEZd7euxmiq5H8d5NS	t
+9	3	sofia.v@gmail.com	$2a$10$wzypYsczep7Q1JtcuNDBpO9y82wSbJBsg9MiVvMc3jcWK449Fa9H6	t
+10	3	mateo.l@gmail.com	$2a$10$GkVpTjmexzjMODn7DcK9OOVjRVQP0XjaHET9pldxyPki9ScN0dI6m	t
+11	1	admin@redvet.cl	$2b$10$Z31bPMV4L/GePAD69oaTe.Bo1cqVT8EG1yaAPk0znd4u8.qLi8CZ6	t
 \.
 
 
@@ -1799,5 +1812,5 @@ REFRESH MATERIALIZED VIEW public.mv_estadisticas_atencion;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qcCMA9LHiFfympmHtWAfX5vzyNQoDsXC4bbeEbnEAOMrqlqmjQeOdwb0ByEnBGX
+\unrestrict VIsuG8aJwUkm3CYylpQO0BUaDmqbKu8nCJLH1tO69eOnmKKXa9FjBDqDZjKAIer
 
